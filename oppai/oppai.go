@@ -40,6 +40,10 @@ func (e *Engine) DELETE(pattern string, handler HandlerFunc) {
 	e.router.AddRoutes("DELETE", pattern, handler)
 }
 
+func (e *Engine) OPTION(pattern string, handler HandlerFunc) {
+	e.router.AddRoutes("OPTION", pattern, handler)
+}
+
 func (e *Engine) Run(addr string) (err error) {
 	return http.ListenAndServe(addr, e)
 }
