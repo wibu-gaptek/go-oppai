@@ -21,6 +21,13 @@ type Context struct {
 
 	// Response Info
 	StatusCode int
+
+	// Middlewares
+	handlers []HandlerFunc
+	index    int
+
+	// Set Release
+	Debug bool
 }
 
 func newContext(w http.ResponseWriter, r *http.Request) *Context {
@@ -29,7 +36,24 @@ func newContext(w http.ResponseWriter, r *http.Request) *Context {
 		Req:    r,
 		Path:   r.URL.Path,
 		Method: r.Method,
+		index:  -1,
 	}
+}
+
+func (ctx *Context) Next() {
+	ctx.index++
+	skip := len(ctx.handlers)
+
+	for ; ctx.index < skip; ctx.index++ {
+		ctx.handlers[ctx.index](ctx)
+	}
+}
+
+func (ctx *Context) Fail(code int, err string) {
+	ctx.index = len(ctx.handlers)
+	ctx.JSON(code, H{
+		"error": err,
+	})
 }
 
 func (ctx *Context) Param(key string) string {

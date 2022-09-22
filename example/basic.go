@@ -20,5 +20,14 @@ func main() {
 		})
 	})
 
+	v1 := r.Group("/v1")
+	{
+		v1.GET("/", func(ctx *oppai.Context) {
+			ctx.JSON(http.StatusOK, oppai.H{
+				"message": "Api V1",
+			})
+		})
+	}
+
 	r.Run(":3000")
 }
