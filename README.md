@@ -31,6 +31,6 @@ r.GET("/", func(ctx *oppai.Context) {
 # Start your server and listen to 0.0.0.0:3000, you could change this with your desired address
 r.Run(":3000")
 
-# or for example you want listen to 192.168.0.1:8080
+# or if you want listen to 192.168.0.1:8080
 r.Run("192.168.0.1:8080")
 ```
