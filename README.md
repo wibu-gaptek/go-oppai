@@ -58,4 +58,6 @@ func (e *RouterGroup) GET(pattern string, handler HandlerFunc)
 
 Serve Oppai with GET Method on certain route defined in pattern.
 
+### net/http
+
 For more information, please read on https://pkg.go.dev/net/http#pkg-constants
