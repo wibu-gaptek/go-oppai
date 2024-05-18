@@ -2,7 +2,6 @@ package oppai
 
 import (
 	"fmt"
-	"strings"
 )
 
 type node struct {
@@ -23,7 +22,7 @@ func (n *node) insert(pattern string, parts []string, height int) {
 	}
 
 	part := parts[height]
-	child := n.matchChild(part)
+	child := n.matchChildren(part)
 
 	if child == nil {
 		child = &node{part: part, isWild: part[0] == ':' || part[0] == '*'}
@@ -34,28 +33,26 @@ func (n *node) insert(pattern string, parts []string, height int) {
 }
 
 func (n *node) search(parts []string, height int) *node {
-	if len(parts) == height || strings.HasPrefix(n.part, "*") {
+	if len(parts) == height || n.isWild {
 		if n.pattern == "" {
 			return nil
 		}
-
 		return n
 	}
 
 	part := parts[height]
-	children := n.matchChildren(part)
-
-	for _, child := range children {
-		result := child.search(parts, height+1)
-		if result != nil {
-			return result
+	for _, child := range n.children {
+		if child.part == part || child.isWild {
+			if result := child.search(parts, height+1); result != nil {
+				return result
+			}
 		}
 	}
 
 	return nil
 }
 
-func (n *node) travel(list *([]*node)) {
+func (n *node) travel(list *[]*node) {
 	if n.pattern != "" {
 		*list = append(*list, n)
 	}
@@ -64,24 +61,39 @@ func (n *node) travel(list *([]*node)) {
 	}
 }
 
-func (n *node) matchChildren(part string) []*node {
-	nodes := make([]*node, 0)
-
-	for _, child := range n.children {
-		if child.part == part || child.isWild {
-			nodes = append(nodes, child)
-		}
-	}
-
-	return nodes
-}
-
-func (n *node) matchChild(part string) *node {
+func (n *node) matchChildren(part string) *node {
 	for _, child := range n.children {
 		if child.part == part || child.isWild {
 			return child
 		}
 	}
-
 	return nil
+}
+
+func parsePattern(pattern string) []string {
+	var parts []string
+	start := 0
+	isWild := false
+
+	for i := 0; i < len(pattern); i++ {
+		if pattern[i] == '/' {
+			if start != i {
+				parts = append(parts, pattern[start:i])
+			}
+			start = i + 1
+		} else if pattern[i] == '*' {
+			if start != i {
+				parts = append(parts, pattern[start:i])
+			}
+			parts = append(parts, pattern[i:])
+			isWild = true
+			break
+		}
+	}
+
+	if !isWild && start < len(pattern) {
+		parts = append(parts, pattern[start:])
+	}
+
+	return parts
 }
