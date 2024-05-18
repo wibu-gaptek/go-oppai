@@ -3,9 +3,9 @@ package oppai
 import (
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strings"
-	"time"
 )
 
 var oppaiLogo = ` _____             _ 
@@ -35,8 +35,6 @@ type (
 	}
 
 	OppaiConfig struct {
-		ReadTimeout   time.Time
-		WriteTimeout  time.Time
 		GeneralHeader bool
 		DebugMode     bool
 	}
@@ -106,8 +104,14 @@ func (e *Engine) Run(addr string) (err error) {
 	if e.engine.config.DebugMode {
 		fmt.Println("DEBUGMODE IS ACTIVE")
 	}
+
+	if isPortInUse(addr) {
+		panic("port was used!")
+	}
+
 	log.Printf("http server running on %s", addr)
 	return http.ListenAndServe(addr, e)
+
 }
 
 func (e *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -122,4 +126,13 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx.handlers = middlewares
 	oppaiHandlerCfg := &oppaiHandlerCfg{ctx}
 	e.router.handle(oppaiHandlerCfg)
+}
+
+func isPortInUse(port string) bool {
+	ln, err := net.Listen("tcp", port)
+	if err != nil {
+		return true // return true if port was use
+	}
+	ln.Close()
+	return false
 }
