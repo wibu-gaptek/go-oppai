@@ -120,5 +120,6 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	ctx := newContext(w, req, &e.config)
 	ctx.handlers = middlewares
-	e.router.handle(ctx)
+	oppaiHandlerCfg := &oppaiHandlerCfg{ctx}
+	e.router.handle(oppaiHandlerCfg)
 }

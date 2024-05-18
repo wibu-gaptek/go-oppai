@@ -8,6 +8,8 @@ import (
 	"net/http"
 )
 
+type oppaiCookie *string
+
 type H map[string]interface{}
 
 type Context struct {
@@ -127,17 +129,24 @@ func (ctx *Context) SetCookie(cookie *http.Cookie) {
 	http.SetCookie(ctx.Writer, cookie)
 }
 
-func (ctx *Context) GetCookie(name string) string {
+func (ctx *Context) GetCookie(name string) oppaiCookie {
 	cookie, err := ctx.Req.Cookie(name)
 	if err != nil {
-		switch {
-		case errors.Is(err, http.ErrNoCookie):
+		if errors.Is(err, http.ErrNoCookie) {
+			debugModeLog(ctx.oppaiCfg.DebugMode, err)
 			http.Error(ctx.Writer, "cookie not found", http.StatusBadRequest)
-		default:
-			log.Println(err)
+		} else {
+			debugModeLog(ctx.oppaiCfg.DebugMode, err)
 			http.Error(ctx.Writer, "server error", http.StatusInternalServerError)
 		}
+		return nil
 	}
 
-	return cookie.Value
+	return &cookie.Value
+}
+
+func debugModeLog(debugMode bool, s any) {
+	if debugMode {
+		log.Printf(" -> DEBUGMODE %v \n", s)
+	}
 }
