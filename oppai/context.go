@@ -26,17 +26,18 @@ type Context struct {
 	handlers []HandlerFunc
 	index    int
 
-	// Set Release
-	Debug bool
+	// config
+	oppaiCfg *OppaiConfig
 }
 
-func newContext(w http.ResponseWriter, r *http.Request) *Context {
+func newContext(w http.ResponseWriter, r *http.Request, config *OppaiConfig) *Context {
 	return &Context{
-		Writer: w,
-		Req:    r,
-		Path:   r.URL.Path,
-		Method: r.Method,
-		index:  -1,
+		Writer:   w,
+		Req:      r,
+		Path:     r.URL.Path,
+		Method:   r.Method,
+		index:    -1,
+		oppaiCfg: config,
 	}
 }
 
@@ -57,13 +58,13 @@ func (ctx *Context) Fail(code int, err string) {
 }
 
 func (ctx *Context) Param(key string) string {
-	value, _ := ctx.Params[key]
-
-	return value
+	return ctx.Params[key]
 }
 
-func (ctx *Context) GeneralHeader() {
-	ctx.Writer.Header().Set("Powered-By", "Go Oppai Engine")
+func (ctx *Context) setgeneralHeader() {
+	if ctx.oppaiCfg.GeneralHeader {
+		ctx.Writer.Header().Set("Powered-By", "Go Oppai Engine")
+	}
 }
 
 func (ctx *Context) PostForm(key string) string {
@@ -84,14 +85,14 @@ func (ctx *Context) SetHeader(key string, value string) {
 }
 
 func (ctx *Context) String(code int, format string, values ...interface{}) {
-	ctx.GeneralHeader()
+	ctx.setgeneralHeader()
 	ctx.SetHeader("Content-Type", "text/plain")
 	ctx.Status(code)
 	ctx.Writer.Write([]byte(fmt.Sprintf(format, values...)))
 }
 
 func (ctx *Context) JSON(code int, object interface{}) {
-	ctx.GeneralHeader()
+	ctx.setgeneralHeader()
 	ctx.SetHeader("Content-Type", "application/json")
 	ctx.Status(code)
 
@@ -102,14 +103,20 @@ func (ctx *Context) JSON(code int, object interface{}) {
 }
 
 func (ctx *Context) Data(code int, data []byte) {
-	ctx.GeneralHeader()
+	ctx.setgeneralHeader()
 	ctx.Status(code)
 	ctx.Writer.Write(data)
 }
 
 func (ctx *Context) HTML(code int, html string) {
-	ctx.GeneralHeader()
+	ctx.setgeneralHeader()
 	ctx.SetHeader("Content-Type", "text/html")
 	ctx.Status(code)
 	ctx.Writer.Write([]byte(html))
+}
+
+func (ctx *Context) Bind(d any) error {
+	ctx.SetHeader("Content-Type", "application/json")
+	decoder := json.NewDecoder(ctx.Req.Body)
+	return decoder.Decode(d)
 }
