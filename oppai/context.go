@@ -2,7 +2,9 @@ package oppai
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -119,4 +121,23 @@ func (ctx *Context) Bind(d any) error {
 	ctx.SetHeader("Content-Type", "application/json")
 	decoder := json.NewDecoder(ctx.Req.Body)
 	return decoder.Decode(d)
+}
+
+func (ctx *Context) SetCookie(cookie *http.Cookie) {
+	http.SetCookie(ctx.Writer, cookie)
+}
+
+func (ctx *Context) GetCookie(name string) string {
+	cookie, err := ctx.Req.Cookie(name)
+	if err != nil {
+		switch {
+		case errors.Is(err, http.ErrNoCookie):
+			http.Error(ctx.Writer, "cookie not found", http.StatusBadRequest)
+		default:
+			log.Println(err)
+			http.Error(ctx.Writer, "server error", http.StatusInternalServerError)
+		}
+	}
+
+	return cookie.Value
 }
