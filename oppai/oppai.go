@@ -1,9 +1,19 @@
 package oppai
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 )
+
+var oppaiLogo = ` _____             _ 
+|     |___ ___ ___|_|
+|  |  | . | . | .'| |
+|_____|  _|  _|__,|_|
+      |_| |_|                   
+`
 
 // HandlerFunc defines the request handler used by oppai
 type HandlerFunc func(*Context)
@@ -21,12 +31,25 @@ type (
 		*RouterGroup
 		router *router
 		groups []*RouterGroup
+		config OppaiConfig
+	}
+
+	OppaiConfig struct {
+		ReadTimeout   time.Time
+		WriteTimeout  time.Time
+		GeneralHeader bool
+		DebugMode     bool
 	}
 )
 
 // New is the constructor of oppai.Engine
-func New() *Engine {
-	engine := &Engine{router: NewRouter()}
+func New(cfg ...OppaiConfig) *Engine {
+	var opaiCfg OppaiConfig
+	if len(cfg) > 0 {
+		opaiCfg = cfg[0]
+	}
+
+	engine := &Engine{router: NewRouter(), config: opaiCfg}
 	engine.RouterGroup = &RouterGroup{engine: engine}
 	engine.groups = []*RouterGroup{engine.RouterGroup}
 
@@ -79,6 +102,11 @@ func (e *Engine) OPTION(pattern string, handler HandlerFunc) {
 }
 
 func (e *Engine) Run(addr string) (err error) {
+	println(oppaiLogo)
+	if e.engine.config.DebugMode {
+		fmt.Println("DEBUGMODE IS ACTIVE")
+	}
+	log.Printf("http server running on %s", addr)
 	return http.ListenAndServe(addr, e)
 }
 
@@ -90,7 +118,7 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	ctx := newContext(w, req)
+	ctx := newContext(w, req, &e.config)
 	ctx.handlers = middlewares
 	e.router.handle(ctx)
 }
