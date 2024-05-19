@@ -12,6 +12,16 @@ type userRegister struct {
 	Password string `json:"password"`
 }
 
+type todoPageData struct {
+	PageTitle string
+	Todos     []todos
+}
+
+type todos struct {
+	Title string
+	Done  bool
+}
+
 func main() {
 	r := oppai.New(oppai.OppaiConfig{
 		GeneralHeader: true,
@@ -64,6 +74,29 @@ func main() {
 			})
 		}
 
+	})
+
+	r.GET("/tmpl", func(ctx *oppai.Context) {
+		data := todoPageData{
+			PageTitle: "My TODO list",
+			Todos: []todos{
+				{Title: "Task 1", Done: false},
+				{Title: "Task 2", Done: true},
+				{Title: "Task 3", Done: true},
+			},
+		}
+		if err := ctx.RenderHTML("example/assets/index.html", data); err != nil {
+			ctx.JSON(http.StatusBadRequest, oppai.H{
+				"err": err,
+			})
+		}
+	})
+
+	r.GET("/ip", func(ctx *oppai.Context) {
+		ip := ctx.GetIPAdress()
+		ctx.JSON(http.StatusBadRequest, oppai.H{
+			"ip": ip,
+		})
 	})
 
 	r.Run(":9000")
