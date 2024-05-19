@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"log"
+	"net"
 	"net/http"
+	"os"
 )
 
 type oppaiCookie *string
@@ -143,6 +146,49 @@ func (ctx *Context) GetCookie(name string) oppaiCookie {
 	}
 
 	return &cookie.Value
+}
+
+func (ctx *Context) RenderHTML(name string, data any) error {
+	tmpl := template.Must(template.ParseFiles(name))
+	return tmpl.Execute(ctx.Writer, data)
+}
+
+func (ctx *Context) GetIPAdress() string {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error getting network interfaces: %v\n", err)
+		os.Exit(1)
+	}
+
+	for _, i := range interfaces {
+		addrs, err := i.Addrs()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting addresses for interface %v: %v\n", i.Name, err)
+			continue
+		}
+
+		for _, addr := range addrs {
+			ip := extractIP(addr)
+			if ip != nil && !ip.IsLoopback() && ip.To4() != nil {
+				return ip.String()
+			}
+		}
+	}
+
+	fmt.Fprintln(os.Stderr, "No valid IP address found.")
+	os.Exit(1)
+	return ""
+}
+
+func extractIP(addr net.Addr) net.IP {
+	switch v := addr.(type) {
+	case *net.IPNet:
+		return v.IP
+	case *net.IPAddr:
+		return v.IP
+	default:
+		return nil
+	}
 }
 
 func debugModeLog(debugMode bool, s any) {
