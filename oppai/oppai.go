@@ -1,9 +1,19 @@
 package oppai
 
 import (
+	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"strings"
 )
+
+var oppaiLogo = ` _____             _ 
+|     |___ ___ ___|_|
+|  |  | . | . | .'| |
+|_____|  _|  _|__,|_|
+      |_| |_|                   
+`
 
 // HandlerFunc defines the request handler used by oppai
 type HandlerFunc func(*Context)
@@ -21,12 +31,23 @@ type (
 		*RouterGroup
 		router *router
 		groups []*RouterGroup
+		config OppaiConfig
+	}
+
+	OppaiConfig struct {
+		GeneralHeader bool
+		DebugMode     bool
 	}
 )
 
 // New is the constructor of oppai.Engine
-func New() *Engine {
-	engine := &Engine{router: NewRouter()}
+func New(cfg ...OppaiConfig) *Engine {
+	var opaiCfg OppaiConfig
+	if len(cfg) > 0 {
+		opaiCfg = cfg[0]
+	}
+
+	engine := &Engine{router: NewRouter(), config: opaiCfg}
 	engine.RouterGroup = &RouterGroup{engine: engine}
 	engine.groups = []*RouterGroup{engine.RouterGroup}
 
@@ -79,7 +100,18 @@ func (e *Engine) OPTION(pattern string, handler HandlerFunc) {
 }
 
 func (e *Engine) Run(addr string) (err error) {
+	println(oppaiLogo)
+	if e.engine.config.DebugMode {
+		fmt.Println("DEBUGMODE IS ACTIVE")
+	}
+
+	if isPortInUse(addr) {
+		panic("port was used!")
+	}
+
+	log.Printf("http server running on %s", addr)
 	return http.ListenAndServe(addr, e)
+
 }
 
 func (e *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -90,7 +122,17 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	ctx := newContext(w, req)
+	ctx := newContext(w, req, &e.config)
 	ctx.handlers = middlewares
-	e.router.handle(ctx)
+	oppaiHandlerCfg := &oppaiHandlerCfg{ctx}
+	e.router.handle(oppaiHandlerCfg)
+}
+
+func isPortInUse(port string) bool {
+	ln, err := net.Listen("tcp", port)
+	if err != nil {
+		return true // return true if port was use
+	}
+	ln.Close()
+	return false
 }

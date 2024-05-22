@@ -2,12 +2,15 @@ package oppai
 
 import (
 	"net/http"
-	"strings"
 )
 
 type router struct {
 	root     map[string]*node
 	handlers map[string]HandlerFunc
+}
+
+type oppaiHandlerCfg struct {
+	OppaiCtx *Context
 }
 
 func NewRouter() *router {
@@ -17,14 +20,11 @@ func NewRouter() *router {
 	}
 }
 
-func (r *router) AddRoutes(method string, pattern string, handler HandlerFunc) {
-
+func (r *router) AddRoutes(method, pattern string, handler HandlerFunc) {
 	parts := parsePattern(pattern)
-
 	key := method + "_" + pattern
-	_, ok := r.root[method]
 
-	if !ok {
+	if _, ok := r.root[method]; !ok {
 		r.root[method] = &node{}
 	}
 
@@ -32,7 +32,7 @@ func (r *router) AddRoutes(method string, pattern string, handler HandlerFunc) {
 	r.handlers[key] = handler
 }
 
-func (r *router) getRoute(method string, path string) (*node, map[string]string) {
+func (r *router) getRoute(method, path string) (*node, map[string]string) {
 	searchParts := parsePattern(path)
 	params := make(map[string]string)
 	root, ok := r.root[method]
@@ -42,63 +42,46 @@ func (r *router) getRoute(method string, path string) (*node, map[string]string)
 	}
 
 	n := root.search(searchParts, 0)
-
 	if n != nil {
 		parts := parsePattern(n.pattern)
 		for i, part := range parts {
 			if part[0] == ':' {
 				params[part[1:]] = searchParts[i]
-			}
-
-			if part[0] == '*' && len(part) > 0 {
-				params[part[1:]] = strings.Join(searchParts[i:], "/")
+			} else if part[0] == '*' {
+				params[part[1:]] = joinParts(searchParts[i:])
 				break
 			}
 		}
-
 		return n, params
 	}
-
 	return nil, nil
 }
 
-func (r *router) getRoutes(method string) []*node {
-	root, ok := r.root[method]
-
-	if !ok {
-		return nil
-	}
-
-	nodes := make([]*node, 0)
-	root.travel(&nodes)
-
-	return nodes
-}
-
-func (r *router) handle(ctx *Context) {
-	n, params := r.getRoute(ctx.Method, ctx.Path)
+func (r *router) handle(ctx *oppaiHandlerCfg) {
+	n, params := r.getRoute(ctx.OppaiCtx.Method, ctx.OppaiCtx.Path)
 	if n != nil {
-		ctx.Params = params
-		key := ctx.Method + "_" + n.pattern
-		r.handlers[key](ctx)
+		ctx.OppaiCtx.Params = params
+		key := ctx.OppaiCtx.Method + "_" + n.pattern
+		r.handlers[key](ctx.OppaiCtx)
 	} else {
-		ctx.String(http.StatusNotFound, "ERROR 404 NOT FOUND: %s\n", ctx.Path)
+		http.Error(ctx.OppaiCtx.Writer, "NOT FOUND", http.StatusNotFound)
 	}
 }
 
-// Only one * is allowed
-func parsePattern(pattern string) []string {
-	split := strings.Split(pattern, "/")
-
-	parts := make([]string, 0)
-	for _, item := range split {
-		if item != "" {
-			parts = append(parts, item)
-			if item[0] == '*' {
-				break
-			}
+func joinParts(parts []string) string {
+	length := 0
+	for _, part := range parts {
+		length += len(part) + 1
+	}
+	joined := make([]byte, length-1)
+	pos := 0
+	for _, part := range parts {
+		copy(joined[pos:], part)
+		pos += len(part)
+		if pos < length-1 {
+			joined[pos] = '/'
+			pos++
 		}
 	}
-
-	return parts
+	return string(joined)
 }
